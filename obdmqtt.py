@@ -24,7 +24,7 @@ def handler(signum, frame):
 #####################################################################################
                         #MQTT Connection#
 #####################################################################################
-if config.getboolean(mqttconf['enabled']) == True:
+if mqttconf.getboolean('enabled') == True:
     # The callback for when the client receives a CONNACK response from the server.
     def on_connect(client, userdata, flags, rc):
         print("Connected to MQTT with result code "+str(rc))
@@ -38,11 +38,12 @@ if config.getboolean(mqttconf['enabled']) == True:
     client.on_publish = on_publish
 
     #Check if we make a tls connection to MQTT server
-    if config.getboolean(mqttconf['tls_enabled']) == True:
-        client.tls_set(mqttconf(['ca_cert'])
+    if mqttconf.getboolean('tls_enabled') == True:
+        client.tls_set(mqttconf['ca_cert'])
 
     #Create the MQTT Connection
-    client.connect(mqttconf['server'], int(mqttconf['port']))
+    client.username_pw_set(mqttconf['username'], mqttconf['password'])
+    client.connect(mqttconf['server'],port=int(mqttconf['port']))
     client.loop_start()
 
 #####################################################################################
@@ -69,27 +70,27 @@ while True:
     #Start by getting RPM
     r = connection.query(obd.commands.RPM).value.mangitude
     #If configured, get DTC and clear DTC
-    if config.getboolean(obdconf['get_dtc']) == True:
+    if obdconf.getboolean('get_dtc') == True:
         d = connection.query(obd.commands.GET_DTC)
         payload = "DTC:" + d + ","
-    if config.getboolean(obdconf['clear_dtc']) == True:
+    if obdconf.getboolean('clear_dtc') == True:
         connection.query(obd.commands.CLEAR_DTC)
 
     #If RPM = 0 engine is not running and we don't want to send data
     while r > 0:
         #Check if we should write to a file
-        if config.getboolean(fileconf['enabled']) == True:
+        if fileconf.getboolean('enabled') == True:
             #Check if we have initialized a file
             if file == "":
                 #Open a file with current time as name
                 filename = fileconf['location'] + datetime.now() + ".log"
                 print("Opening file", filename, "for writing \n")
-                file = open(filename,w)
+                file = open(filename,'w')
 
         #Get rpm and speed
         r = connection.query(obd.commands.RPM).value.mangitude
         s = connection.query(obd.commands.SPEED).value.mangitude
-        payload = "RPM:" +r "," + "SPEED:" + s
+        payload = "RPM:" + r + "," + "SPEED:" + s
         #Listen to a kill signal
         signal.signal(signal.SIGINT, handler)
         
@@ -99,14 +100,14 @@ while True:
                 #Get all other configured OBD items and add them to the payload
                 payload = "," + x + ":" + connection.query(obd.commands.x.upper()).value.magnitude
 
-        if config.getboolean(mqttconf['enabled']) == True:
+        if mqttconf.getboolean('enabled') == True:
             #Publish to MQTT if enabled
             print("Publishing data \n")
-            publish= client.publish(mqttconf['topic'],payload)
+            publish= client.publish(mqttconf['topic'],payload=payload,qos=int(mqttconf['qos']))
         
-        if config.getboolean(fileconf['enabled']) == True:
+        if fileconf.getboolean('enabled') == True:
             #Write data to file if enabled
-            print("Writing data to file \")
+            print("Writing data to file \n")
             file.write(payload)
 
         #Clear the payload for next run
@@ -115,13 +116,13 @@ while True:
         time.sleep(int(mqttconf['publish_interval']))
 
     #Engine shut down. Get DTC
-    if config.getboolean(obdconf['get_current_dtc']) == True:
+    if obdconf.getboolean('get_current_dtc') == True:
         dtc = connection.query(obd.commands.GET_CURRENT_DTC)
         payload = "DTC:" + dtc
         publish= client.publish(mqttconf['topic'],payload)
         file.write(dtc)
 
-    if config.getboolean(fileconf['enabled']) == True:
+    if fileconf.getboolean('enabled') == True:
         print("Closing file \n")
         file.close()
         file = ""

@@ -3,9 +3,13 @@ Raspberry Pi Data logger for car sending data to a MQTT server
 
 This is a work in progress. I haven't even tested the first version yet.
 
+Paho-MQTT-Client and OBD are prerequisites. 
+
+Install with pip3 install paho-mqtt obd
+
 Connect an ELM327 OBD dongle to your Raspberry Pi either by USB or Bluetooth.
 
-Update config.ini accordingly.
+Update example_config.ini and rename to config.ini.
 
 [FILE]
 
